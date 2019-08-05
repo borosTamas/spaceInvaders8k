@@ -1,12 +1,14 @@
 (function () {
     var Game = function(canvasId) {
-        var self = this;        
+        var self = this;
         
         var canvas = document.createElement("canvas");
-        canvas.setAttribute("width", "400px");
-        canvas.setAttribute("height", "300px");
+        canvas.setAttribute("width", "100%");
+        canvas.setAttribute("height", "100%");
         canvas.setAttribute("id", canvasId);
         document.body.appendChild(canvas);
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerWidth/2;
         
         var gameSize = { w: canvas.width, h: canvas.height };
         this.gameSize = gameSize;
@@ -32,17 +34,33 @@
                 
         var ctx = document.getElementById(canvasId).getContext("2d");
         this.ctx = ctx;
-        ctx.fillStyle = "rgb(0, 0, 0)";
-        ctx.fillRect(0, 0, gameSize.w, gameSize.h);
-        
+
+
         var alien = new Image();
         this.alien = alien;
-        alien.src = "img/alien.png";
+        alien.src = "img/alien1.png";
         images.push(alien);
-        
+
+        var alien2 = new Image();
+        this.alien2 = alien2;
+        alien2.src = "img/alien2.png";
+        images.push(alien2);
+
+        var alien3 = new Image();
+        this.alien3 = alien3;
+        alien3.src = "img/alien3.png";
+        images.push(alien3);
+
+        var sponsor =new Image();
+        this.sponsor = sponsor;
+        sponsor.src = "img/unicum.png";
+        images.push(sponsor);
+
         var ship = new Image();
         this.ship = ship;
-        ship.src = "img/ship.png";
+        ship.src = "img/ship2.png";
+        ship.width = 50;
+        ship.height = 53;
         images.push(ship);
         
         var death = new Image();
@@ -55,7 +73,7 @@
         xray.src = "img/xray.png";
         images.push(xray);
         
-        alien.onload = ship.onload = death.onload = xray.onload = itemLoaded;
+        alien.onload = alien2.onload = alien3.onload = sponsor.onload = ship.onload = death.onload = xray.onload = itemLoaded;
         
         console.log("game running");
     };
@@ -75,10 +93,12 @@
                     var collided = colliding(entityA, entityB);
                     
                     if (collided && (entityA instanceof Invader || entityA instanceof Player)) {
+                        self.addEntity(new Sponsor(self, entityA.position, self.sponsor, entityA.i));
                         self.addDeath(new Death(self, entityA.position));
                     }
                     
                     if (collided && (entityB instanceof Invader || entityB instanceof Player)) {
+                        self.addEntity(new Sponsor(self, entityB.position, self.sponsor, entityB.i));
                         self.addDeath(new Death(self, entityB.position));
                     }
                     
@@ -127,19 +147,38 @@
         addDeath: function(death) {
             this.deaths.push(death);
         },
-        
-        invadersBelow: function(invader) {
-            return this.entities.filter(function (anotherInvader) {
-                return anotherInvader instanceof Invader &&
-                    anotherInvader.position.y > invader.position.y &&
-                    Math.abs(anotherInvader.position.x - invader.position.x < anotherInvader.size.w)
-            }).length > 0;
+    };
+    var Sponsor = function (game, position, sprite,i) {
+        this.game = game;
+        this.position = position;
+        this.i = i;
+        this.size = { w: 60, h: 60 };
+        this.sprite = sprite;
+        this.speedX = 0.4;
+        this.patrol = 0;
+        this.count = (i % 9) * 8;
+    };
+    Sponsor.prototype = {
+        update: function() {
+            this.count = (++this.count > 9) ? 0 : this.count;
+
+            if (this.patrol < 0 || this.patrol > 74) {
+                this.speedX = -this.speedX;
+                this.position.y += 15;
+            }
+
+            this.patrol += this.speedX;
+            this.position.x += this.speedX;
+
+        },
+        draw: function() {
+            this.game.ctx.drawImage(this.sprite, 0, 0, this.size.w-1, this.size.h, this.position.x - this.size.w/2, this.position.y - this.size.h/2, this.size.w, this.size.h);
         }
     };
     
     var Player = function(game, gameSize) {
         this.game = game;
-        this.size = { w: 13, h: 8 };
+        this.size = { w: 50, h: 53 };
         this.position = { x: (gameSize.w - this.size.w)/2, y: gameSize.h - this.size.h };
         this.pauseFire = 0;
         this.fireEnabled = true;
@@ -155,9 +194,13 @@
             }
             
             if (this.controls.isDown(this.controls.KEYS.LEFT)) {
-                this.position.x -=1;
+                if(this.position.x > 50){
+                    this.position.x -=4;
+                }
             } else if (this.controls.isDown(this.controls.KEYS.RIGHT)) {
-                this.position.x += 1;
+                if(this.position.x < window.innerWidth-50){
+                    this.position.x += 4;
+                }
             }
             
             if (this.fireEnabled && this.controls.isDown(this.controls.KEYS.FIRE)) {
@@ -189,20 +232,20 @@
         }
     };
     
-    var Invader = function(game, position, i) {
+    var Invader = function(game, position, i, sprite) {
         this.game = game;
         this.position = position;
         this.i = i;
-        this.size = { w: 12, h: 7 };
-        this.sprite = this.game.alien;
+        this.size = { w: 60, h: 60 };
+        this.sprite = sprite;
         this.speedX = 0.4;
         this.patrol = 0;
-        this.count = (i % 16) * 8;
+        this.count = (i % 9) * 8;
     };
     
     Invader.prototype = {
         update: function() {
-            this.count = (++this.count > 16) ? 0 : this.count;
+            this.count = (++this.count > 9) ? 0 : this.count;
             
             if (this.patrol < 0 || this.patrol > 74) {
                 this.speedX = -this.speedX;
@@ -211,14 +254,10 @@
             
             this.patrol += this.speedX;
             this.position.x += this.speedX;
-            
-            if (!this.game.invadersBelow(this) && Math.random() > 0.995) {
-                this.game.addEntity(new Xray(this.game, { x: this.position.x - this.size.w/2, y: this.position.y + this.size.h }, { x: Math.random() - 0.5, y: 2 }));
-            }
+
         },
         draw: function() {
-            var offset = (this.count > 8) ? this.size.w-1 : 0;
-            this.game.ctx.drawImage(this.sprite, 0 + offset, 0, this.size.w-1, this.size.h, this.position.x - this.size.w/2, this.position.y - this.size.h/2, this.size.w, this.size.h);
+            this.game.ctx.drawImage(this.sprite, 0, 0, this.size.w-1, this.size.h, this.position.x - this.size.w/2, this.position.y - this.size.h/2, this.size.w, this.size.h);
         }
     };
     
@@ -239,14 +278,13 @@
             this.count = (++this.count > 10) ? 0 : this.count;
         },
         draw: function() {
-            var offset = (this.count > 5) ? 3 : 0;
-            this.game.ctx.drawImage(this.sprite, 0 + offset, 0, this.size.w, this.size.h, this.position.x - this.size.w/2, this.position.y - this.size.h/2, this.size.w, this.size.h);
+            this.game.ctx.drawImage(this.sprite, 0, 0, this.size.w, this.size.h, this.position.x - this.size.w/2, this.position.y - this.size.h/2, this.size.w, this.size.h);
         }
     };
     
     var Death = function(game, position) {
         this.game = game;
-        this.size = { w: 11, h:7 };
+        this.size = { w: 80, h:56 };
         this.position = position;
         this.count = 13;
         this.sprite = this.game.death;
@@ -281,11 +319,34 @@
     
     var createInvaders = function(game) {
         var invaders = [];
-        
-        for (var i=0; i<80; i++) {
-            var x = 30 + (i % 16) * 18;
-            var y = 30 + ( i % 5) * 15;
-            invaders.push(new Invader(game, { x: x, y: y}, i));
+        var x = 50;
+        var y = 50;
+        for (var i=0; i<36; i++) {
+
+            let sprite = game.alien;
+            if(i > 8){
+                sprite = game.alien2;
+            }
+            if(i > 17){
+                sprite = game.alien;
+            }
+            if(i > 26){
+                sprite = game.alien3;
+            }
+            invaders.push(new Invader(game, { x: x, y: y}, i, sprite));
+            x += 100;
+            if(i===8){
+                y = 130;
+                x = 50;
+            }
+            if(i === 17){
+                y = 210;
+                x = 50
+            }
+            if( i === 26){
+                y = 290;
+                x = 50;
+            }
         }
         
         return invaders;
